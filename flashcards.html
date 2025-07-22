@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Flashcards de Estudo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #F8F7F4; color: #1E293B; }
+        .nav-button { transition: all 0.2s ease-in-out; }
+        .nav-button.active, .nav-button:hover { background-color: #E2E8F0; color: #0F172A; transform: translateX(4px); }
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .flashcard-container { perspective: 1000px; }
+        .flashcard { transition: transform 0.6s; transform-style: preserve-3d; }
+        .flashcard.is-flipped { transform: rotateY(180deg); }
+        .flashcard-front, .flashcard-back { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+        .flashcard-back { transform: rotateY(180deg); }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <aside id="sidebar" class="w-full md:w-64 lg:w-80 bg-white/80 backdrop-blur-sm border-r border-slate-200 p-4 md:p-6 shrink-0 flex flex-col">
+            <h1 class="text-xl font-bold text-slate-800 mb-4">Minhas Matérias</h1>
+            <div class="relative mb-4">
+                <input type="text" id="search-input" placeholder="Buscar matéria..." class="w-full pl-8 pr-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <span class="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            </div>
+            <nav id="navigation" class="space-y-1 overflow-y-auto flex-1"></nav>
+        </aside>
+        <main class="flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto">
+            <div id="content-area">
+                 <div class="text-center py-20">
+                    <h2 class="text-2xl font-bold text-slate-700">Selecione uma matéria para começar</h2>
+                    <p class="text-slate-500 mt-2">Navegue pelas suas matérias e revise com os flashcards.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const navigation = document.getElementById('navigation');
+            const contentArea = document.getElementById('content-area');
+            const searchInput = document.getElementById('search-input');
+            let appData = {}; 
+
+            fetch('data.json')
+                .then(response => response.json())
+                .then(data => {
+                    appData = data;
+                    renderNavigation();
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar o JSON:', error);
+                    contentArea.innerHTML = `<div class="text-center py-20 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"><h2 class="text-2xl font-bold">Falha ao carregar os dados!</h2><p class="mt-2">Verifique se o arquivo <strong>data.json</strong> existe e se você iniciou o servidor local (Passo 4).</p></div>`;
+                });
+
+            function renderContent(materiaId) {
+                const materia = appData.materias.find(m => m.id === materiaId);
+                if (!materia) return;
+                contentArea.innerHTML = `
+                    <div id="${materia.id}" class="content-section active space-y-8">
+                        <header><h2 class="text-3xl font-bold text-slate-900">${materia.title}</h2><p class="text-lg text-slate-600 mt-1">Total de ${materia.flashcards.length} flashcards.</p></header>
+                        <section>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${materia.flashcards.map(card => `
+                                    <div class="flashcard-container h-56" onclick="this.querySelector('.flashcard').classList.toggle('is-flipped')">
+                                        <div class="flashcard relative w-full h-full cursor-pointer">
+                                            <div class="flashcard-front absolute w-full h-full bg-indigo-500 rounded-lg shadow-lg flex items-center justify-center p-4 text-center"><p class="text-lg font-semibold text-white">${card.q}</p></div>
+                                            <div class="flashcard-back absolute w-full h-full bg-white rounded-lg shadow-lg flex items-center justify-center p-4 text-center border-2 border-indigo-500 overflow-y-auto"><p class="text-md font-medium text-slate-800">${card.a}</p></div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </section>
+                    </div>`;
+            }
+
+            function renderNavigation(filter = '') {
+                navigation.innerHTML = '';
+                const filteredMaterias = appData.materias.filter(materia => materia.title.toLowerCase().includes(filter.toLowerCase()));
+                filteredMaterias.forEach(materia => {
+                    const button = document.createElement('button');
+                    button.className = 'nav-button w-full text-left px-4 py-2 rounded-md text-slate-600 font-medium';
+                    button.textContent = materia.title;
+                    button.dataset.materiaId = materia.id;
+                    navigation.appendChild(button);
+                });
+            }
+
+            navigation.addEventListener('click', e => {
+                if (e.target.tagName === 'BUTTON') {
+                    document.querySelectorAll('.nav-button').forEach(btn => btn.classList.remove('active'));
+                    e.target.classList.add('active');
+                    renderContent(e.target.dataset.materiaId);
+                }
+            });
+
+            searchInput.addEventListener('input', e => renderNavigation(e.target.value));
+        });
+    </script>
+</body>
+</html>
